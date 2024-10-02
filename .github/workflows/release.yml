@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+      - name: Install Zig for cross-compilation
+        run: |
+          ZIG_VERSION=0.13.0
+          INSTALL_DIR=$HOME/.local
+          mkdir -p $INSTALL_DIR
+          curl -sSfL https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz | tar -xJf - -C $INSTALL_DIR
+          echo "$INSTALL_DIR/zig-linux-x86_64-${ZIG_VERSION}/" >> $GITHUB_PATH
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: "3.39.0"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Initialize build environment
+        run: task init
+
+      - name: Build binaries
+        run: task build
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BIN=ecs-meta2env-rs
+          mv target/x86_64-unknown-linux-musl/release/$BIN $BIN-amd64
+          mv target/aarch64-unknown-linux-musl/release/$BIN $BIN-arm64
+          gh release upload ${{ github.event.release.tag_name }} $BIN-amd64 $BIN-arm64
