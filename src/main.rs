@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::time::Duration;
@@ -35,6 +36,12 @@ struct ContainerMetadata {
     container_arn: String,
 }
 
+#[derive(Deserialize)]
+struct ContainerMetadataFile {
+    #[serde(rename = "ContainerInstanceARN")]
+    container_instance_arn: String,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -50,6 +57,17 @@ fn main() {
     let container_metadata: ContainerMetadata =
         fetch_metadata_with_retry(metadata_uri, MAX_RETRIES, RETRY_INTERVAL).expect("Error fetching container metadata");
 
+    // get container instance ARN from metadata file if `META2ENV_USE_FILE` is set
+    let container_instance_arn = if env::var("META2ENV_USE_FILE").is_ok() {
+        let metadata_file_path = env::var("ECS_CONTAINER_METADATA_FILE").expect("ECS_CONTAINER_METADATA_FILE environment variable not set");
+        let metadata_file_content = fs::read_to_string(metadata_file_path).expect("Error reading metadata file");
+        let file_metadata: ContainerMetadataFile = serde_json::from_str(&metadata_file_content).expect("Error parsing metadata file");
+        file_metadata.container_instance_arn
+    } else {
+        // otherwise, CONTAINER_INSTANCE_ARN will be empty
+        String::new()
+    };
+
     if let Some(command) = std::env::args().nth(1) {
         let error = Command::new(command)
             .args(std::env::args().skip(2))
@@ -61,6 +79,7 @@ fn main() {
             .env(format!("{}CONTAINER_NAME", PREFIX), container_metadata.name)
             .env(format!("{}CONTAINER_DOCKER_NAME", PREFIX), container_metadata.docker_name)
             .env(format!("{}CONTAINER_ARN", PREFIX), container_metadata.container_arn)
+            .env(format!("{}CONTAINER_INSTANCE_ARN", PREFIX), container_instance_arn)
             .exec();
         eprintln!("Failed to execute command: {}", error);
     } else {

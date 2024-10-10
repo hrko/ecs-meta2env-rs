@@ -37,6 +37,9 @@ ENTRYPOINT ["/meta2env", "<original-entrypoint...>"]
 * `X_ECS_CONTAINER_NAME`
 * `X_ECS_CONTAINER_DOCKER_NAME`
 * `X_ECS_CONTAINER_ARN`
+* `X_ECS_CONTAINER_INSTANCE_ARN` (only when `META2ENV_USE_FILE` is set, see below for more information)
+
+Because the ECS metadata endpoint lacks `ContainerInstanceARN`, it needs to be read from the [container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-metadata.html). To do this, set the `META2ENV_USE_FILE` environment variable to any value. Note that this requires the ECS agent to be [configured to write the container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/enable-metadata.html). This feature is only available when the launch type is `EC2` or `EXTERNAL`. If `META2ENV_USE_FILE` is not set, `X_ECS_CONTAINER_INSTANCE_ARN` will be empty string, but still exported.
 
 ## Development
 

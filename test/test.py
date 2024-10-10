@@ -35,22 +35,16 @@ def run(server_class=http.server.HTTPServer, handler_class=RequestHandler):
     httpd.serve_forever()
 
 
-if __name__ == "__main__":
-    # start mock container metadata endpoint
-    server_thread = threading.Thread(target=run)
-    server_thread.daemon = True
-    server_thread.start()
-
+def test_ecs_meta2env_rs(input_env: dict, expected_env: dict):
     # run ecs-meta2env-rs
     env = os.environ.copy()
-    env["ECS_CONTAINER_METADATA_URI_V4"] = "http://127.0.0.1:5000"
+    env = {**env, **input_env}
     cp = subprocess.run(
         ["../target/x86_64-unknown-linux-musl/release/ecs-meta2env-rs", "printenv"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-
     # parse output
     output_env = {}
     for line in cp.stdout.decode("utf-8").split("\n"):
@@ -58,10 +52,30 @@ if __name__ == "__main__":
             continue
         key, value = line.split("=", 1)
         output_env[key] = value
-
     # ensure expected environment variables are set
     if cp.returncode != 0:
+        print("=== stdout ===")
+        print(cp.stdout.decode("utf-8"))
+        print("=== stderr ===")
+        print(cp.stderr.decode("utf-8"))
         raise Exception("Failed to run ecs-meta2env-rs")
+    for key, value in expected_env.items():
+        if output_env[key] != value:
+            raise Exception(f"Expected {key} to be {value}, got {output_env[key]}")
+        else:
+            print(f"OK: {key}={value}")
+    return
+
+
+if __name__ == "__main__":
+    # start mock container metadata endpoint
+    server_thread = threading.Thread(target=run)
+    server_thread.daemon = True
+    server_thread.start()
+
+    # test case 1
+    print("Test case 1 - metadata from endpoint")
+    input_env = {"ECS_CONTAINER_METADATA_URI_V4": "http://127.0.0.1:5000"}
     expected_env = {
         "X_ECS_CLUSTER": "default",
         "X_ECS_TASK_ARN": "arn:aws:ecs:us-west-2:111122223333:task/default/158d1c8083dd49d6b527399fd6414f5c",
@@ -71,11 +85,28 @@ if __name__ == "__main__":
         "X_ECS_CONTAINER_NAME": "curl",
         "X_ECS_CONTAINER_DOCKER_NAME": "ecs-curltest-24-curl-cca48e8dcadd97805600",
         "X_ECS_CONTAINER_ARN": "arn:aws:ecs:us-west-2:111122223333:container/0206b271-b33f-47ab-86c6-a0ba208a70a9",
+        "X_ECS_CONTAINER_INSTANCE_ARN": "",
     }
-    for key, value in expected_env.items():
-        if output_env[key] != value:
-            raise Exception(f"Expected {key} to be {value}, got {output_env[key]}")
-        else:
-            print(f"OK: {key}={value}")
+    test_ecs_meta2env_rs(input_env, expected_env)
+    print("Test case 1 passed!")
 
-    print("All tests passed!")
+    # test case 2
+    print("Test case 2 - metadata from endpoint and file")
+    input_env = {
+        "ECS_CONTAINER_METADATA_URI_V4": "http://127.0.0.1:5000",
+        "ECS_CONTAINER_METADATA_FILE": "container_file.json",
+        "META2ENV_USE_FILE": "true",
+    }
+    expected_env = {
+        "X_ECS_CLUSTER": "default",
+        "X_ECS_TASK_ARN": "arn:aws:ecs:us-west-2:111122223333:task/default/158d1c8083dd49d6b527399fd6414f5c",
+        "X_ECS_FAMILY": "curltest",
+        "X_ECS_REVISION": "26",
+        "X_ECS_SERVICE_NAME": "MyService",
+        "X_ECS_CONTAINER_NAME": "curl",
+        "X_ECS_CONTAINER_DOCKER_NAME": "ecs-curltest-24-curl-cca48e8dcadd97805600",
+        "X_ECS_CONTAINER_ARN": "arn:aws:ecs:us-west-2:111122223333:container/0206b271-b33f-47ab-86c6-a0ba208a70a9",
+        "X_ECS_CONTAINER_INSTANCE_ARN": "arn:aws:ecs:us-west-2:012345678910:container-instance/default/1f73d099-b914-411c-a9ff-81633b7741dd",
+    }
+    test_ecs_meta2env_rs(input_env, expected_env)
+    print("Test case 2 passed!")
