@@ -37,9 +37,22 @@ ENTRYPOINT ["/meta2env", "<original-entrypoint...>"]
 * `X_ECS_CONTAINER_NAME`
 * `X_ECS_CONTAINER_DOCKER_NAME`
 * `X_ECS_CONTAINER_ARN`
-* `X_ECS_CONTAINER_INSTANCE_ARN` (only when `META2ENV_USE_FILE` is set, see below for more information)
+* `X_ECS_CONTAINER_INSTANCE_ARN` (only when `META2ENV_USE_FILE` is set)
+* `X_ECS_CONTAINER_INSTANCE_HOSTNAME` (only when both `META2ENV_USE_FILE` and `META2ENV_FETCH_HOSTNAME` are set)
 
-Because the ECS metadata endpoint lacks `ContainerInstanceARN`, it needs to be read from the [container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-metadata.html). To do this, set the `META2ENV_USE_FILE` environment variable to any value. Note that this requires the ECS agent to be [configured to write the container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/enable-metadata.html). This feature is only available when the launch type is `EC2` or `EXTERNAL`. If `META2ENV_USE_FILE` is not set, `X_ECS_CONTAINER_INSTANCE_ARN` will be empty string, but still exported.
+### `X_ECS_CONTAINER_INSTANCE_ARN`
+
+The ECS metadata endpoint lacks `ContainerInstanceARN`, so it needs to be read from the [container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-metadata.html). To enable this, set the `META2ENV_USE_FILE` environment variable to any value.
+
+> [!NOTE]
+> This requires the ECS agent to be [configured to write the container metadata file](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/enable-metadata.html). This feature is only available when the launch type is `EC2` or `EXTERNAL`. If `META2ENV_USE_FILE` is not set, `X_ECS_CONTAINER_INSTANCE_ARN` will be an empty string, but still exported.
+
+### `X_ECS_CONTAINER_INSTANCE_HOSTNAME`
+
+To fetch the container instance hostname, set both `META2ENV_USE_FILE` and `META2ENV_FETCH_HOSTNAME` environment variables to any value. This will call `ecs:DescribeContainerInstances` and `ssm:DescribeInstanceInformation` to retrieve the hostname.
+
+> [!NOTE]
+> When using `META2ENV_FETCH_HOSTNAME`, ensure that the task is assigned an IAM role with the appropriate policies (`ecs:DescribeContainerInstances` and `ssm:DescribeInstanceInformation`). If these variables are not set, `X_ECS_CONTAINER_INSTANCE_HOSTNAME` will be an empty string, but still exported.
 
 ## Development
 
