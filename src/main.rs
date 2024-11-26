@@ -4,6 +4,8 @@ use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::time::Duration;
 
+use aws_sdk_ecs as ecs;
+use aws_sdk_ssm as ssm;
 use reqwest::blocking::Client;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
@@ -42,7 +44,8 @@ struct ContainerMetadataFile {
     container_instance_arn: String,
 }
 
-fn main() {
+#[::tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <command> [args...]", args[0]);
@@ -68,6 +71,43 @@ fn main() {
         String::new()
     };
 
+    // get container instance hostname by calling ecs:DescribeContainerInstances and
+    // ssm:DescribeInstanceInformation if both `META2ENV_USE_FILE` and `META2ENV_FETCH_HOSTNAME` are set.
+    let container_instance_hostname = if env::var("META2ENV_USE_FILE").is_ok() && env::var("META2ENV_FETCH_HOSTNAME").is_ok() {
+        let config = aws_config::load_from_env().await;
+
+        let ecs_client = ecs::Client::new(&config);
+        let container_instance = ecs_client
+            .describe_container_instances()
+            .cluster(&task_metadata.cluster)
+            .container_instances(&container_instance_arn)
+            .send()
+            .await
+            .expect("Error fetching container instance");
+        let container_instances = container_instance.container_instances.unwrap();
+        let instance_id = container_instances[0].ec2_instance_id.as_ref().expect("Instance ID not found");
+
+        let ssm_client = ssm::Client::new(&config);
+        let instance_info = ssm_client
+            .describe_instance_information()
+            .filters(
+                ssm::types::InstanceInformationStringFilter::builder()
+                    .key("InstanceIds")
+                    .values(instance_id)
+                    .build()
+                    .unwrap(),
+            )
+            .send()
+            .await
+            .expect("Error fetching instance information");
+        let computer_name = instance_info.instance_information_list.unwrap()[0].computer_name.clone();
+        let hostname = computer_name.as_ref().expect("Computer name not found");
+        hostname.clone()
+    } else {
+        // otherwise, CONTAINER_INSTANCE_HOSTNAME will be empty
+        String::new()
+    };
+
     if let Some(command) = std::env::args().nth(1) {
         let error = Command::new(command)
             .args(std::env::args().skip(2))
@@ -80,6 +120,7 @@ fn main() {
             .env(format!("{}CONTAINER_DOCKER_NAME", PREFIX), container_metadata.docker_name)
             .env(format!("{}CONTAINER_ARN", PREFIX), container_metadata.container_arn)
             .env(format!("{}CONTAINER_INSTANCE_ARN", PREFIX), container_instance_arn)
+            .env(format!("{}CONTAINER_INSTANCE_HOSTNAME", PREFIX), container_instance_hostname)
             .exec();
         eprintln!("Failed to execute command: {}", error);
     } else {
