@@ -24,8 +24,10 @@ struct TaskMetadata {
     family: String,
     #[serde(rename = "Revision")]
     revision: String,
+    // ServiceName is not present on Fargate tasks at the time of writing
+    // ref. https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/task-metadata-endpoint-v4-fargate-examples.html
     #[serde(rename = "ServiceName")]
-    service_name: String,
+    service_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -115,7 +117,7 @@ async fn main() {
             .env(format!("{}TASK_ARN", PREFIX), task_metadata.task_arn)
             .env(format!("{}FAMILY", PREFIX), task_metadata.family)
             .env(format!("{}REVISION", PREFIX), task_metadata.revision)
-            .env(format!("{}SERVICE_NAME", PREFIX), task_metadata.service_name)
+            .env(format!("{}SERVICE_NAME", PREFIX), task_metadata.service_name.unwrap_or_default())
             .env(format!("{}CONTAINER_NAME", PREFIX), container_metadata.name)
             .env(format!("{}CONTAINER_DOCKER_NAME", PREFIX), container_metadata.docker_name)
             .env(format!("{}CONTAINER_ARN", PREFIX), container_metadata.container_arn)
