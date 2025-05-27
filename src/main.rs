@@ -4,6 +4,8 @@ use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::time::Duration;
 
+use aws_config::meta::region::RegionProviderChain;
+use aws_config::Region;
 use aws_sdk_ecs as ecs;
 use aws_sdk_ssm as ssm;
 use reqwest::blocking::Client;
@@ -76,7 +78,9 @@ async fn main() {
     // get container instance hostname by calling ecs:DescribeContainerInstances and
     // ssm:DescribeInstanceInformation if both `META2ENV_USE_FILE` and `META2ENV_FETCH_HOSTNAME` are set.
     let container_instance_hostname = if env::var("META2ENV_USE_FILE").is_ok() && env::var("META2ENV_FETCH_HOSTNAME").is_ok() {
-        let config = aws_config::load_from_env().await;
+        let parsed_region = extract_region_from_arn(&container_instance_arn).expect("Failed to extract region from container_instance_arn");
+        let region_provider = RegionProviderChain::default_provider().or_else(Region::new(parsed_region.clone()));
+        let config = aws_config::from_env().region(region_provider).load().await;
 
         let ecs_client = ecs::Client::new(&config);
         let container_instance = ecs_client
@@ -149,4 +153,14 @@ fn fetch_metadata_with_retry<T: DeserializeOwned>(url: String, max_retries: u32,
 fn fetch_metadata<T: DeserializeOwned>(client: &Client, url: &str) -> Result<T, reqwest::Error> {
     let resp = client.get(url).send()?;
     resp.json()
+}
+
+fn extract_region_from_arn(arn: &str) -> Option<String> {
+    // arn:aws:ecs:ap-northeast-1:123456789012:container-instance/xxx
+    let parts: Vec<&str> = arn.split(':').collect();
+    if parts.len() > 3 {
+        Some(parts[3].to_string())
+    } else {
+        None
+    }
 }
