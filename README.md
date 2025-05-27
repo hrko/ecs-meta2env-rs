@@ -51,6 +51,9 @@ The ECS metadata endpoint lacks `ContainerInstanceARN`, so it needs to be read f
 
 To fetch the container instance hostname, set both `META2ENV_USE_FILE` and `META2ENV_FETCH_HOSTNAME` environment variables to any value. This will call `ecs:DescribeContainerInstances` and `ssm:DescribeInstanceInformation` to retrieve the hostname.
 
+- If `META2ENV_FETCH_HOSTNAME` is set to `short`, only the part before the first dot will be exported (e.g., `ip-10-0-0-123` from `ip-10-0-0-123.ec2.internal`).
+- If set to any other value (or just set), the full hostname will be exported (e.g., `ip-10-0-0-123.ec2.internal`).
+
 > [!NOTE]
 > When using `META2ENV_FETCH_HOSTNAME`, ensure that the task is assigned an IAM role with the appropriate policies (`ecs:DescribeContainerInstances` and `ssm:DescribeInstanceInformation`). If these variables are not set, `X_ECS_CONTAINER_INSTANCE_HOSTNAME` will be an empty string, but still exported.
 

@@ -108,7 +108,13 @@ async fn main() {
             .expect("Error fetching instance information");
         let computer_name = instance_info.instance_information_list.unwrap()[0].computer_name.clone();
         let hostname = computer_name.as_ref().expect("Computer name not found");
-        hostname.clone()
+        // export short hostname if META2ENV_FETCH_HOSTNAME is set to "short"
+        let fetch_hostname_mode = env::var("META2ENV_FETCH_HOSTNAME").unwrap_or_default();
+        if fetch_hostname_mode == "short" {
+            hostname.split('.').next().unwrap_or("").to_string()
+        } else {
+            hostname.clone()
+        }
     } else {
         // otherwise, CONTAINER_INSTANCE_HOSTNAME will be empty
         String::new()
