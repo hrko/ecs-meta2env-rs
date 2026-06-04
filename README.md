@@ -61,24 +61,31 @@ To fetch the container instance hostname, set both `META2ENV_USE_FILE` and `META
 
 ### Prerequisites
 
-* Dev Container: The project is set up to be used with a dev container. If you are using VS Code, you can open the project in a dev container by selecting the `Reopen in Container` option.
+* `mise`: Toolchain versions are managed with `mise`.
+* Dev Container (optional): Use it for environment isolation (OS/dependencies), while language/tools are provisioned by `mise`.
+
+### Setup
+
+```sh
+mise install
+```
 
 ### Building
 
 To build the project, run the following command:
 
 ```sh
-task build
+mise run build
 ```
 
-This will create the binaries in the `./target` directory.
+This runs `goreleaser build --snapshot --clean` and creates cross-compiled binaries in `./dist`.
 
 ### Testing
 
 To run the tests, run the following command:
 
 ```sh
-task test
+mise run test
 ```
 
 ## References
