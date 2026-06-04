@@ -2,10 +2,6 @@ version: 2
 
 project_name: ecs-meta2env-rs
 
-before:
-  hooks:
-    - rustup default stable
-
 builds:
   - id: ecs-meta2env-rs
     builder: rust
@@ -24,3 +20,7 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+dockers_v2:
+  - images:
+      - ghcr.io/hrko/ecs-meta2env-rs
