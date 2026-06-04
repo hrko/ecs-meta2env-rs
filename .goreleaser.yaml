@@ -1,0 +1,26 @@
+version: 2
+
+project_name: ecs-meta2env-rs
+
+before:
+  hooks:
+    - rustup default stable
+
+builds:
+  - id: ecs-meta2env-rs
+    builder: rust
+    binary: ecs-meta2env-rs
+    tool: cargo
+    command: zigbuild
+    targets:
+      - x86_64-unknown-linux-musl
+      - aarch64-unknown-linux-musl
+    flags:
+      - --release
+
+archives:
+  - formats: [binary]
+    name_template: "{{ .ProjectName }}-{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt

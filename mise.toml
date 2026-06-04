@@ -1,0 +1,24 @@
+min_version = '2026.4.23'
+
+[settings]
+minimum_release_age = "14d"
+pin = true
+lockfile = true
+libc = "musl"
+
+[tools]
+rust = "1.81.0"
+zig = "0.13.0"
+"github:rust-cross/cargo-zigbuild" = "0.22.3"
+"github:goreleaser/goreleaser" = "v2.16.0"
+
+[tasks.build]
+run = "goreleaser build --snapshot --clean"
+
+[tasks.release]
+run = "goreleaser release --clean"
+
+[tasks.test]
+depends = ["build"]
+dir = "test"
+run = "./test.py"
