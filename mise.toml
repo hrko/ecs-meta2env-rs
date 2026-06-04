@@ -15,6 +15,9 @@ zig = "0.13.0"
 [tasks.build]
 run = "goreleaser build --snapshot --clean"
 
+[tasks.snapshot]
+run = "goreleaser release --snapshot --clean --skip=publish"
+
 [tasks.release]
 run = "goreleaser release --clean"
 
