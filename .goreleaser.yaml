@@ -24,3 +24,6 @@ checksum:
 dockers_v2:
   - images:
       - ghcr.io/hrko/ecs-meta2env-rs
+    tags:
+      - "v{{ .Version }}"
+      - latest
