@@ -14,16 +14,15 @@ You can download the latest release from the [releases page](https://github.com/
 Below is an example of how to use `ecs-meta2env-rs` in a Dockerfile:
 
 ```Dockerfile
-FROM debian:bookworm-slim AS ecs-meta2env-rs-downloader
-RUN apt-get update && apt-get install -y curl
-RUN if [ "$(uname -m)" = "x86_64" ]; then ARCH="amd64"; else ARCH="arm64"; fi && \
-    curl -L -o /meta2env https://github.com/hrko/ecs-meta2env-rs/releases/download/v1.0.0/ecs-meta2env-rs-$ARCH && \
-    chmod +x /meta2env
+FROM ghcr.io/hrko/ecs-meta2env-rs:latest AS ecs-meta2env-rs
 
 FROM <original-image>
-COPY --from=ecs-meta2env-rs-downloader /meta2env /meta2env
+COPY --from=ecs-meta2env-rs /ecs-meta2env-rs /meta2env
 ENTRYPOINT ["/meta2env", "<original-entrypoint...>"]
 ```
+
+> [!NOTE]
+> For production workloads, prefer pinning the source image by digest (for example, `ghcr.io/hrko/ecs-meta2env-rs@sha256:<digest>`) instead of using a mutable tag like `:latest`.
 
 ## Environment Variables
 
